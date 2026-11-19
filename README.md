@@ -62,7 +62,12 @@ client ──▶ your API, with  Authorization: Bearer oat_…
 
 A client names itself, so show `redirectHost` next to the name: it is the one thing on the page the client cannot make up.
 
-If the request is invalid the answer is a `400` with `error` and `error_description`. When it also has `redirectTo`, send the browser there (the client is told what was wrong). When it does not, the client or its redirect URI could not be trusted: show the error and send the person nowhere.
+If the request is invalid the answer is a `400` with `error` and `error_description`. Without `redirectTo`, the client or its redirect URI could not be trusted: show the error and send the person nowhere. With `redirectTo`, the client can be told what was wrong by sending the browser there, but think before doing that unasked: registration is open, so anyone can make a link to your consent page that would bounce a visitor to an address of their choosing. Showing the error on the page is the safe default.
+
+Two more things are the page's to check, because only your app knows them:
+
+- **`resource`.** A token is good at the server it names. Approve a request only when `resource` is one your app serves; otherwise someone else's server could send your users here and leave with tokens made out to it.
+- **Framing.** Send `Content-Security-Policy: frame-ancestors 'none'` with the page, so another site cannot put it in a frame and steer a click.
 
 `POST /api/oauth/consent`, with the user's PocketBase token, takes the same parameters as JSON plus the decision:
 
