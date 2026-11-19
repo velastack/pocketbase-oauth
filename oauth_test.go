@@ -688,8 +688,12 @@ func TestConfidentialClient(t *testing.T) {
 		"redirect_uri":  {testRedirect},
 		"code_verifier": {testVerifier},
 	}
-	if res := env.form("/api/oauth/token", values); res.status != http.StatusUnauthorized || res.str("error") != "invalid_client" {
+	res := env.form("/api/oauth/token", values)
+	if res.status != http.StatusUnauthorized || res.str("error") != "invalid_client" {
 		t.Fatalf("Expected invalid_client without the secret, got %d %s", res.status, res.raw)
+	}
+	if res.header.Get("WWW-Authenticate") != "" {
+		t.Fatal("Expected no Basic challenge for a client that did not try Basic")
 	}
 	values.Set("client_secret", "wrong")
 	if res := env.form("/api/oauth/token", values); res.status != http.StatusUnauthorized {
@@ -700,6 +704,12 @@ func TestConfidentialClient(t *testing.T) {
 	values.Del("client_secret")
 	values.Del("client_id")
 	req := httptest.NewRequest(http.MethodPost, "/api/oauth/token", strings.NewReader(values.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(clientID, "wrong")
+	if res := env.send(req); res.status != http.StatusUnauthorized || res.header.Get("WWW-Authenticate") == "" {
+		t.Fatalf("Expected a Basic challenge for a wrong Basic secret, got %d %s", res.status, res.raw)
+	}
+	req = httptest.NewRequest(http.MethodPost, "/api/oauth/token", strings.NewReader(values.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth(clientID, secret)
 	if res := env.send(req); res.status != http.StatusOK {

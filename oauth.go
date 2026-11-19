@@ -221,7 +221,9 @@ func (p *plugin) metadata(e *core.RequestEvent) error {
 // which is not PocketBase's own error shape.
 func oauthError(e *core.RequestEvent, status int, code string, description string) error {
 	e.Response.Header().Set("Cache-Control", "no-store")
-	if status == http.StatusUnauthorized {
+	// only for a client that tried HTTP Basic (RFC 6749 5.2): a browser shown
+	// the challenge unasked would put up its own password prompt
+	if status == http.StatusUnauthorized && e.Request.Header.Get("Authorization") != "" {
 		e.Response.Header().Set("WWW-Authenticate", `Basic realm="oauth"`)
 	}
 	return e.JSON(status, map[string]string{"error": code, "error_description": description})
